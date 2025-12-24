@@ -132,11 +132,32 @@ export default function Typing() {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Typing Practice</h1>
-          <p className="text-muted-foreground">
-            Monkeytype & Sajilo-style typing experience
-          </p>
-        </div>
+  <h1 className="text-3xl font-bold">Typing Practice</h1>
+  <p className="text-muted-foreground mb-3">
+    Monkeytype & Sajilo-style typing experience
+  </p>
+
+  <div className="flex gap-4 text-sm">
+    <a
+      href="https://monkeytype.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-500 hover:underline"
+    >
+      Practice on Monkeytype →
+    </a>
+
+    <a
+      href="https://sajilotyping.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-green-500 hover:underline"
+    >
+      Practice on Sajilo Typing →
+    </a>
+  </div>
+</div>
+
 
         {/* Language Toggle */}
         <div className="flex gap-2 mb-6">
