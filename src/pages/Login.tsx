@@ -77,7 +77,7 @@ export default function Login() {
       <div className="w-full max-w-md relative animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold gradient-text mb-2">LOKSEWA CO</h1>
+          <h1 className="text-3xl font-bold gradient-text mb-2">लोकसेवा सारथी</h1>
           <p className="text-muted-foreground">Computer Operator Preparation Dashboard</p>
         </div>
 
@@ -97,7 +97,7 @@ export default function Login() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Dhiaj Shahi"
+                    placeholder="Dhiraj Shahi"
                     className="w-full h-12 pl-11 pr-4 rounded-lg bg-secondary border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>
