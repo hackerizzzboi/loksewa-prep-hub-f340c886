@@ -1,224 +1,276 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Clock, Keyboard, Target, Play, RotateCcw } from 'lucide-react';
+import {
+  Keyboard,
+  Clock,
+  Target,
+  RotateCcw,
+  Play,
+  Pause,
+  Check,
+} from 'lucide-react';
+import { useStats } from '@/contexts/StatsContext';
+import { toast } from '@/hooks/use-toast';
 
-/* =======================
-   WORD BANKS (INFINITE)
-======================= */
-
-const ENGLISH_WORDS = [
-  'computer','operator','typing','practice','government','system','network',
-  'information','technology','keyboard','accuracy','speed','internet','database',
-  'application','software','hardware','security','management','digital','service',
-  'record','process','input','output','development','education','administration',
-];
-
-const NEPALI_WORDS = [
-  'कम्प्युटर','अपरेटर','सरकार','प्रविधि','सूचना','सेवा','प्रणाली','डाटा',
-  'इन्टरनेट','सफ्टवेयर','हार्डवेयर','प्रशासन','रिकर्ड','व्यवस्थापन',
-  'डिजिटल','शिक्षा','कार्यालय','कार्य','प्रक्रिया','विकास','सुरक्षा',
-];
-
-const ENGLISH_SENTENCES = [
-  'Computer operators play a vital role in modern offices.',
-  'Typing speed and accuracy are important for practical exams.',
-  'Information technology improves efficiency and productivity.',
-  'Government offices are moving towards digital systems.',
-];
-
-const NEPALI_SENTENCES = [
-  'कम्प्युटर अपरेटरहरूले कार्यालयको काम सजिलो बनाउँछन्।',
-  'टाइपिङ गति र शुद्धता व्यवहारिक परीक्षाका लागि महत्त्वपूर्ण हुन्छ।',
-  'सूचना प्रविधिले कार्यक्षमता बढाउँछ।',
-  'सरकारी कार्यालयहरू डिजिटल प्रणालीतर्फ अघि बढिरहेका छन्।',
-];
-
-/* =======================
-   HELPERS
-======================= */
-
-const randomFromArray = (arr: string[]) =>
-  arr[Math.floor(Math.random() * arr.length)];
-
-const generateWords = (count: number, lang: 'english' | 'nepali') => {
-  const bank = lang === 'english' ? ENGLISH_WORDS : NEPALI_WORDS;
-  return Array.from({ length: count }, () => randomFromArray(bank)).join(' ');
+const sampleTexts = {
+  english: [
+    'The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet at least once.',
+    'Computer operators are responsible for ensuring smooth operation of computer systems in organizations.',
+    "Nepal's government has been implementing various e-governance initiatives to improve public service delivery.",
+    'Information technology plays a crucial role in modern administration and efficient record management.',
+  ],
+  nepali: [
+    'नेपाल एक सुन्दर हिमाली राष्ट्र हो जुन दक्षिण एशियामा अवस्थित छ।',
+    'कम्प्युटर अपरेटरहरूले सरकारी कार्यालयहरूमा महत्त्वपूर्ण भूमिका खेल्छन्।',
+    'सूचना प्रविधिको विकासले हाम्रो जीवनशैलीमा ठूलो परिवर्तन ल्याएको छ।',
+  ],
 };
 
-const generateParagraph = (lang: 'english' | 'nepali') => {
-  const bank = lang === 'english' ? ENGLISH_SENTENCES : NEPALI_SENTENCES;
-  return Array.from({ length: 5 }, () => randomFromArray(bank)).join(' ');
-};
-
-/* =======================
-   COMPONENT
-======================= */
-
-export default function TypingAdvanced() {
+export default function Typing() {
   const [language, setLanguage] = useState<'english' | 'nepali'>('english');
-  const [mode, setMode] = useState<'words' | 'time' | 'sentence' | 'paragraph'>('words');
-  const [wordCount, setWordCount] = useState(50);
-  const [timeLimit, setTimeLimit] = useState(60);
-
   const [text, setText] = useState('');
   const [input, setInput] = useState('');
-  const [started, setStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const [isStarted, setIsStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  const [isComplete, setIsComplete] = useState(false);
+  const { incrementStat } = useStats();
 
-  /* =======================
-     TEXT GENERATION
-  ======================= */
-  const generatedText = useMemo(() => {
-    if (mode === 'words') return generateWords(wordCount, language);
-    if (mode === 'sentence') return randomFromArray(language === 'english' ? ENGLISH_SENTENCES : NEPALI_SENTENCES);
-    if (mode === 'paragraph') return generateParagraph(language);
-    return generateWords(9999, language); // time mode
-  }, [mode, wordCount, language]);
+  useEffect(() => {
+    const texts = sampleTexts[language];
+    setText(texts[Math.floor(Math.random() * texts.length)]);
+  }, [language]);
 
-  /* =======================
-     START / RESET
-  ======================= */
-  const startTest = () => {
-    setText(generatedText);
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (isStarted && !isPaused && !isComplete && startTime) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedTime(elapsed);
+
+        const words = input.trim().split(/\s+/).length;
+        const minutes = elapsed / 60;
+        if (minutes > 0) {
+          setWpm(Math.round(words / minutes));
+        }
+      }, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [isStarted, isPaused, isComplete, startTime, input]);
+
+  const handleStart = () => {
+    setIsStarted(true);
+    setIsPaused(false);
     setInput('');
-    setStarted(true);
-    setTimeLeft(timeLimit);
+    setIsComplete(false);
+    setElapsedTime(0);
+    setStartTime(Date.now());
+  };
+
+  const handlePause = () => setIsPaused(!isPaused);
+
+  const handleReset = () => {
+    setIsStarted(false);
+    setIsPaused(false);
+    setStartTime(null);
+    setInput('');
+    setElapsedTime(0);
     setWpm(0);
     setAccuracy(100);
+    setIsComplete(false);
+    const texts = sampleTexts[language];
+    setText(texts[Math.floor(Math.random() * texts.length)]);
   };
 
-  const resetTest = () => {
-    setStarted(false);
-    setInput('');
-    setText('');
-  };
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isPaused || isComplete) return;
 
-  /* =======================
-     TIMER (TIME MODE)
-  ======================= */
-  useEffect(() => {
-    if (!started || mode !== 'time') return;
-
-    if (timeLeft <= 0) {
-      setStarted(false);
-      return;
-    }
-
-    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [started, timeLeft, mode]);
-
-  /* =======================
-     INPUT HANDLER
-  ======================= */
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!started) return;
-
-    const val = e.target.value;
-    setInput(val);
+    const newInput = e.target.value;
+    setInput(newInput);
 
     let correct = 0;
-    for (let i = 0; i < val.length; i++) {
-      if (val[i] === text[i]) correct++;
+    for (let i = 0; i < newInput.length; i++) {
+      if (newInput[i] === text[i]) correct++;
     }
 
-    setAccuracy(val.length ? Math.round((correct / val.length) * 100) : 100);
+    const acc =
+      newInput.length > 0
+        ? Math.round((correct / newInput.length) * 100)
+        : 100;
 
-    const words = val.trim().split(/\s+/).length;
-    setWpm(Math.round(words / ((timeLimit - timeLeft + 1) / 60 || 1)));
+    setAccuracy(acc);
 
-    if (mode !== 'time' && val === text) {
-      setStarted(false);
+    if (newInput === text) {
+      setIsComplete(true);
+      const minutes = elapsedTime / 60;
+      incrementStat('typingMinutes', Math.ceil(minutes));
+      toast({
+        title: 'Excellent!',
+        description: `You completed the test with ${wpm} WPM and ${acc}% accuracy.`,
+      });
     }
   };
 
-  /* =======================
-     UI
-  ======================= */
+  const formatTime = (seconds: number) =>
+    `${Math.floor(seconds / 60)}:${(seconds % 60)
+      .toString()
+      .padStart(2, '0')}`;
+
+  const getCharacterStatus = (index: number) => {
+    if (index >= input.length) return 'pending';
+    return input[index] === text[index] ? 'correct' : 'incorrect';
+  };
+
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto">
 
-        <h1 className="text-3xl font-bold">Advanced Typing Practice</h1>
+        {/* Header */}
+        <div className="mb-8 animate-fade-up">
+          <h1 className="text-3xl font-bold mb-2">Typing Practice</h1>
+          <p className="text-muted-foreground mb-3">
+            Improve your typing speed for the practical exam
+          </p>
 
-        {/* SETTINGS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <select onChange={e => setMode(e.target.value as any)} className="input">
-            <option value="words">Words</option>
-            <option value="time">Time</option>
-            <option value="sentence">Sentence</option>
-            <option value="paragraph">Paragraph</option>
-          </select>
+          <p className="text-sm text-muted-foreground">
+            Click on the links below for extra practice and make yourself better:
+          </p>
 
-          <select onChange={e => setLanguage(e.target.value as any)} className="input">
-            <option value="english">English</option>
-            <option value="nepali">Nepali</option>
-          </select>
-
-          {mode === 'words' && (
-            <select onChange={e => setWordCount(+e.target.value)} className="input">
-              <option value={25}>25 Words</option>
-              <option value={50}>50 Words</option>
-              <option value={100}>100 Words</option>
-              <option value={200}>200 Words</option>
-            </select>
-          )}
-
-          {mode === 'time' && (
-            <select onChange={e => setTimeLimit(+e.target.value)} className="input">
-              <option value={60}>1 Minute</option>
-              <option value={120}>2 Minutes</option>
-              <option value={300}>5 Minutes</option>
-            </select>
-          )}
-        </div>
-
-        {/* STATS */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="card"><Clock /> {mode === 'time' ? timeLeft : '∞'}s</div>
-          <div className="card"><Keyboard /> {wpm} WPM</div>
-          <div className="card"><Target /> {accuracy}%</div>
-        </div>
-
-        {/* TEXT */}
-        <div className="p-4 bg-secondary rounded-lg font-mono">
-          {text.split('').map((c, i) => (
-            <span
-              key={i}
-              className={
-                i < input.length
-                  ? input[i] === c
-                    ? 'text-green-500'
-                    : 'text-red-500'
-                  : 'text-muted-foreground'
-              }
+          <div className="mt-2 flex gap-4">
+            <a
+              href="https://monkeytype.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
             >
-              {c}
-            </span>
-          ))}
+              Monkeytype
+            </a>
+            <a
+              href="https://sajilotyping.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              Sajilo Typing
+            </a>
+          </div>
         </div>
 
-        {/* INPUT */}
-        <textarea
-          value={input}
-          onChange={handleChange}
-          disabled={!started}
-          className="w-full h-32 p-4 font-mono rounded-lg"
-          placeholder="Start typing..."
-        />
+        {/* Language Toggle */}
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant={language === 'english' ? 'default' : 'outline'}
+            onClick={() => {
+              setLanguage('english');
+              handleReset();
+            }}
+          >
+            English
+          </Button>
+          <Button
+            variant={language === 'nepali' ? 'default' : 'outline'}
+            onClick={() => {
+              setLanguage('nepali');
+              handleReset();
+            }}
+          >
+            नेपाली
+          </Button>
+        </div>
 
-        {/* CONTROLS */}
-        <div className="flex gap-4">
-          {!started ? (
-            <Button onClick={startTest}><Play /> Start</Button>
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="glass-card rounded-xl p-4 text-center">
+            <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-bold">{formatTime(elapsedTime)}</p>
+            <p className="text-xs text-muted-foreground">Time</p>
+          </div>
+          <div className="glass-card rounded-xl p-4 text-center">
+            <Keyboard className="w-5 h-5 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-bold">{wpm}</p>
+            <p className="text-xs text-muted-foreground">WPM</p>
+          </div>
+          <div className="glass-card rounded-xl p-4 text-center">
+            <Target className="w-5 h-5 text-accent mx-auto mb-2" />
+            <p className="text-2xl font-bold">{accuracy}%</p>
+            <p className="text-xs text-muted-foreground">Accuracy</p>
+          </div>
+        </div>
+
+        {/* Typing Area */}
+        <div className="glass-card rounded-xl p-6 mb-6">
+          <div className="mb-6 p-4 rounded-lg bg-secondary/50 font-mono text-lg">
+            {text.split('').map((char, index) => {
+              const status = getCharacterStatus(index);
+              return (
+                <span
+                  key={index}
+                  className={
+                    status === 'correct'
+                      ? 'text-accent'
+                      : status === 'incorrect'
+                      ? 'text-destructive bg-destructive/20'
+                      : index === input.length
+                      ? 'bg-primary/20 animate-pulse'
+                      : 'text-muted-foreground'
+                  }
+                >
+                  {char}
+                </span>
+              );
+            })}
+          </div>
+
+          {isStarted && !isComplete ? (
+            <textarea
+              value={input}
+              onChange={handleInputChange}
+              disabled={isPaused}
+              autoFocus
+              className="w-full h-32 p-4 rounded-lg bg-secondary font-mono text-lg resize-none"
+              placeholder={isPaused ? 'Paused...' : 'Start typing...'}
+            />
+          ) : isComplete ? (
+            <div className="text-center py-8">
+              <Check className="w-10 h-10 text-accent mx-auto mb-2" />
+              <p className="text-lg font-semibold">
+                {wpm} WPM • {accuracy}% Accuracy
+              </p>
+            </div>
           ) : (
-            <Button variant="outline" onClick={resetTest}><RotateCcw /> Reset</Button>
+            <p className="text-center text-muted-foreground py-8">
+              Click Start to begin the typing test
+            </p>
           )}
-        </div>
 
+          <div className="flex justify-center gap-4 mt-6">
+            {!isStarted ? (
+              <Button variant="hero" onClick={handleStart}>
+                <Play className="w-4 h-4" /> Start Test
+              </Button>
+            ) : !isComplete ? (
+              <>
+                <Button variant="outline" onClick={handlePause}>
+                  {isPaused ? <Play /> : <Pause />}
+                  {isPaused ? 'Resume' : 'Pause'}
+                </Button>
+                <Button variant="outline" onClick={handleReset}>
+                  <RotateCcw /> Reset
+                </Button>
+              </>
+            ) : (
+              <Button variant="hero" onClick={handleReset}>
+                <RotateCcw /> Try Again
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </Layout>
   );
