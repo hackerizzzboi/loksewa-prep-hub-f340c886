@@ -133,10 +133,7 @@ export default function Typing() {
         {/* Header */}
         <div className="mb-6">
   <h1 className="text-3xl font-bold">Typing Practice</h1>
-  <p className="text-muted-foreground mb-3">
-    Monkeytype & Sajilo-style typing experience
-  </p>
-
+  
   <div className="flex gap-4 text-sm">
     <a
       href="https://monkeytype.com"
