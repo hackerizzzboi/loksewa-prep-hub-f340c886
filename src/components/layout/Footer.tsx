@@ -7,7 +7,7 @@ export function Footer() {
         <div className="flex flex-col items-center gap-3 text-center">
           <p className="text-sm text-muted-foreground">
             Loksewa Computer Operator Prep Hub • Designed for personal use by{' '}
-            <span className="font-semibold text-foreground">Dhiaj Shahi</span>
+            <span className="font-semibold text-foreground">धिरज शाही</span>
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-full">
             <AlertTriangle className="w-3 h-3 text-accent" />
