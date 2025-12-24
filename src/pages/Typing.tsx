@@ -1,251 +1,201 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Keyboard, Clock, Play, Pause, RotateCcw, BarChart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { useUserData } from '@/contexts/UserDataContext';
+import { Keyboard, Clock, Target, RotateCcw, Play, Pause } from 'lucide-react';
+import { useStats } from '@/contexts/StatsContext';
+import { toast } from '@/hooks/use-toast';
 
 const sampleTexts = {
   english: [
-    'The quick brown fox jumps over the lazy dog. This sentence contains every letter of the English alphabet.',
-    'Nepal is a beautiful country located in South Asia between China and India.',
-    'Computer operators play a vital role in government offices by managing digital systems.',
-    'Good governance ensures transparency, accountability, and citizen participation.',
+    "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet at least once.",
+    "Computer operators are responsible for ensuring smooth operation of computer systems in organizations.",
+    "Nepal's government has been implementing various e-governance initiatives to improve public service delivery.",
+    "Information technology plays a crucial role in modern administration and efficient record management.",
   ],
   nepali: [
-    'नेपाल एक सुन्दर हिमाली राष्ट्र हो। यहाँ विश्वको सबैभन्दा अग्लो हिमाल सगरमाथा अवस्थित छ।',
-    'सरकारी कार्यालयमा कम्प्युटर अपरेटरको भूमिका महत्वपूर्ण छ।',
-    'सुशासन भनेको पारदर्शिता, जवाफदेहिता र नागरिक सहभागिता हो।',
+    "नेपाल एक सुन्दर हिमाली राष्ट्र हो जुन दक्षिण एशियामा अवस्थित छ।",
+    "कम्प्युटर अपरेटरहरूले सरकारी कार्यालयहरूमा महत्त्वपूर्ण भूमिका खेल्छन्।",
+    "सूचना प्रविधिको विकासले हाम्रो जीवनशैलीमा ठूलो परिवर्तन ल्याएको छ।",
   ],
 };
 
-export default function TypingPage() {
-  const [mode, setMode] = useState<'english' | 'nepali'>('english');
+export default function Typing() {
+  const [language, setLanguage] = useState<'english' | 'nepali'>('english');
+  const [text, setText] = useState('');
+  const [input, setInput] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [time, setTime] = useState(0);
-  const [text, setText] = useState('');
-  const [userInput, setUserInput] = useState('');
-  const [errors, setErrors] = useState(0);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
-  const [sessionComplete, setSessionComplete] = useState(false);
+  const [errors, setErrors] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
 
-  const { stats, updateStats } = useUserData();
+  const { incrementStat } = useStats();
 
-  const getRandomText = useCallback((lang: 'english' | 'nepali') => {
-    const texts = sampleTexts[lang];
-    return texts[Math.floor(Math.random() * texts.length)];
-  }, []);
-
+  /* Load random text */
   useEffect(() => {
-    setText(getRandomText(mode));
-  }, [mode, getRandomText]);
+    const texts = sampleTexts[language];
+    setText(texts[Math.floor(Math.random() * texts.length)]);
+    reset();
+  }, [language]);
 
+  /* Timer */
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
-    if (isActive && !sessionComplete) {
+    if (isActive && !isComplete) {
       interval = setInterval(() => {
         setTime((t) => t + 1);
       }, 1000);
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isActive, sessionComplete]);
+    return () => interval && clearInterval(interval);
+  }, [isActive, isComplete]);
 
+  /* WPM */
   useEffect(() => {
-    if (time > 0 && userInput.length > 0) {
-      const words = userInput.trim().split(/\s+/).length;
-      const minutes = time / 60;
-      setWpm(Math.round(words / minutes));
+    if (time > 0 && input.length > 0) {
+      const words = input.trim().split(/\s+/).length;
+      setWpm(Math.round(words / (time / 60)));
     }
-  }, [time, userInput]);
+  }, [time, input]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isComplete) return;
+
     if (!isActive) setIsActive(true);
-    
+
     const value = e.target.value;
-    setUserInput(value);
+    setInput(value);
 
-    // Calculate errors
     let errorCount = 0;
+    let correct = 0;
+
     for (let i = 0; i < value.length; i++) {
-      if (value[i] !== text[i]) {
-        errorCount++;
-      }
+      if (value[i] === text[i]) correct++;
+      else errorCount++;
     }
+
     setErrors(errorCount);
+    setAccuracy(value.length > 0 ? Math.round((correct / value.length) * 100) : 100);
 
-    // Calculate accuracy
-    const totalTyped = value.length;
-    const correctChars = totalTyped - errorCount;
-    setAccuracy(totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 100);
-
-    // Check completion
+    /* Completion */
     if (value.length >= text.length) {
-      setSessionComplete(true);
+      setIsComplete(true);
       setIsActive(false);
-      updateStats({ typingMinutes: stats.typingMinutes + Math.ceil(time / 60) });
+      incrementStat('typingMinutes', Math.ceil(time / 60));
+
+      toast({
+        title: 'Well done! 🎉',
+        description: `${wpm} WPM • ${accuracy}% accuracy • ${errorCount} errors`,
+      });
     }
   };
 
-  const resetSession = () => {
+  const reset = () => {
+    setInput('');
     setIsActive(false);
     setTime(0);
-    setUserInput('');
-    setErrors(0);
     setWpm(0);
     setAccuracy(100);
-    setSessionComplete(false);
-    setText(getRandomText(mode));
+    setErrors(0);
+    setIsComplete(false);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const renderText = () => {
-    return text.split('').map((char, index) => {
+  /* Monkeytype-style character rendering */
+  const renderText = () =>
+    text.split('').map((char, i) => {
       let className = 'text-muted-foreground';
-      if (index < userInput.length) {
-        className = userInput[index] === char ? 'text-accent' : 'text-destructive bg-destructive/20';
-      } else if (index === userInput.length) {
-        className = 'text-foreground bg-primary/20';
+
+      if (i < input.length) {
+        className =
+          input[i] === char
+            ? 'text-green-500'
+            : 'text-red-500 bg-red-500/20';
+      } else if (i === input.length) {
+        className = 'bg-primary/20 text-foreground';
       }
+
       return (
-        <span key={index} className={className}>
+        <span key={i} className={className}>
           {char}
         </span>
       );
     });
-  };
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 rounded-xl bg-orange-500/10">
-            <Keyboard className="w-6 h-6 text-orange-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Typing Practice</h1>
-            <p className="text-sm text-muted-foreground">Improve your English & Nepali typing speed</p>
-          </div>
-        </div>
-      </motion.div>
+    <Layout>
+      <div className="max-w-4xl mx-auto">
 
-      {/* Mode Toggle */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="flex gap-2 mb-6"
-      >
-        <Button
-          variant={mode === 'english' ? 'hero' : 'outline'}
-          onClick={() => { setMode('english'); resetSession(); }}
-        >
-          English
-        </Button>
-        <Button
-          variant={mode === 'nepali' ? 'hero' : 'outline'}
-          onClick={() => { setMode('nepali'); resetSession(); }}
-        >
-          नेपाली (Nepali)
-        </Button>
-      </motion.div>
-
-      {/* Stats Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
-      >
-        <div className="glass rounded-xl p-4 text-center">
-          <Clock className="w-5 h-5 text-primary mx-auto mb-1" />
-          <p className="text-2xl font-bold text-foreground">{formatTime(time)}</p>
-          <p className="text-xs text-muted-foreground">Time</p>
-        </div>
-        <div className="glass rounded-xl p-4 text-center">
-          <BarChart className="w-5 h-5 text-accent mx-auto mb-1" />
-          <p className="text-2xl font-bold text-foreground">{wpm}</p>
-          <p className="text-xs text-muted-foreground">WPM</p>
-        </div>
-        <div className="glass rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-foreground">{accuracy}%</p>
-          <p className="text-xs text-muted-foreground">Accuracy</p>
-        </div>
-        <div className="glass rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-destructive">{errors}</p>
-          <p className="text-xs text-muted-foreground">Errors</p>
-        </div>
-      </motion.div>
-
-      {/* Typing Area */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass rounded-3xl p-6"
-      >
-        {/* Text to Type */}
-        <div className="p-4 bg-secondary/50 rounded-xl mb-4 text-lg leading-relaxed font-mono">
-          {renderText()}
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Typing Practice</h1>
+          <p className="text-muted-foreground">
+            Monkeytype & Sajilo-style typing experience
+          </p>
         </div>
 
-        {/* Input Area */}
-        <textarea
-          value={userInput}
-          onChange={handleInputChange}
-          disabled={sessionComplete}
-          placeholder={`Start typing ${mode === 'nepali' ? 'in Nepali' : 'in English'}...`}
-          className="w-full h-32 p-4 bg-secondary/30 rounded-xl border border-border focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none text-lg font-mono text-foreground placeholder:text-muted-foreground"
-        />
-
-        {/* Controls */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center gap-2">
-            {isActive ? (
-              <Button variant="outline" onClick={() => setIsActive(false)} className="gap-2">
-                <Pause className="w-4 h-4" />
-                Pause
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => !sessionComplete && setIsActive(true)} className="gap-2">
-                <Play className="w-4 h-4" />
-                {time > 0 ? 'Resume' : 'Start'}
-              </Button>
-            )}
-          </div>
-          <Button variant="heroOutline" onClick={resetSession} className="gap-2">
-            <RotateCcw className="w-4 h-4" />
-            New Text
+        {/* Language Toggle */}
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant={language === 'english' ? 'default' : 'outline'}
+            onClick={() => setLanguage('english')}
+          >
+            English
+          </Button>
+          <Button
+            variant={language === 'nepali' ? 'default' : 'outline'}
+            onClick={() => setLanguage('nepali')}
+          >
+            नेपाली
           </Button>
         </div>
 
-        {/* Completion Message */}
-        {sessionComplete && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 p-4 bg-accent/10 border border-accent/30 rounded-xl text-center"
-          >
-            <p className="text-lg font-semibold text-accent mb-1">Great job! 🎉</p>
-            <p className="text-sm text-muted-foreground">
-              You typed {text.length} characters at {wpm} WPM with {accuracy}% accuracy.
-            </p>
-          </motion.div>
-        )}
-      </motion.div>
-    </div>
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="glass-card p-4 text-center">
+            <Clock className="mx-auto mb-1" />
+            {formatTime(time)}
+          </div>
+          <div className="glass-card p-4 text-center">
+            <Keyboard className="mx-auto mb-1" />
+            {wpm} WPM
+          </div>
+          <div className="glass-card p-4 text-center">
+            <Target className="mx-auto mb-1" />
+            {accuracy}%
+          </div>
+          <div className="glass-card p-4 text-center text-red-500">
+            Errors: {errors}
+          </div>
+        </div>
+
+        {/* Typing Area */}
+        <div className="glass-card p-6">
+          <div className="mb-4 font-mono text-lg leading-relaxed">
+            {renderText()}
+          </div>
+
+          <textarea
+            value={input}
+            onChange={handleInput}
+            onPaste={(e) => e.preventDefault()}
+            disabled={isComplete}
+            className="w-full h-32 p-4 font-mono rounded-xl bg-secondary/30 border focus:outline-none"
+            placeholder="Start typing..."
+          />
+
+          <div className="flex justify-between mt-4">
+            <Button onClick={reset}>
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Layout>
   );
 }
