@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Keyboard, Clock, Target, RotateCcw, Play, Pause, Check } from 'lucide-react';
@@ -39,23 +39,20 @@ export default function Typing() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
-    if (isStarted && !isPaused && !isComplete) {
+
+    if (isStarted && !isPaused && !isComplete && startTime) {
       interval = setInterval(() => {
-        if (startTime) {
-          const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          setElapsedTime(elapsed);
-          
-          // Calculate WPM
-          const words = input.trim().split(/\s+/).length;
-          const minutes = elapsed / 60;
-          if (minutes > 0) {
-            setWpm(Math.round(words / minutes));
-          }
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedTime(elapsed);
+
+        const words = input.trim().split(/\s+/).length;
+        const minutes = elapsed / 60;
+        if (minutes > 0) {
+          setWpm(Math.round(words / minutes));
         }
       }, 1000);
     }
-    
+
     return () => clearInterval(interval);
   }, [isStarted, isPaused, isComplete, startTime, input]);
 
@@ -67,9 +64,7 @@ export default function Typing() {
     setElapsedTime(0);
   };
 
-  const handlePause = () => {
-    setIsPaused(!isPaused);
-  };
+  const handlePause = () => setIsPaused(!isPaused);
 
   const handleReset = () => {
     setIsStarted(false);
@@ -86,37 +81,34 @@ export default function Typing() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (isPaused || isComplete) return;
-    
+
     const newInput = e.target.value;
     setInput(newInput);
 
-    // Calculate accuracy
     let correct = 0;
     for (let i = 0; i < newInput.length; i++) {
-      if (newInput[i] === text[i]) {
-        correct++;
-      }
+      if (newInput[i] === text[i]) correct++;
     }
-    const acc = newInput.length > 0 ? Math.round((correct / newInput.length) * 100) : 100;
+
+    const acc =
+      newInput.length > 0
+        ? Math.round((correct / newInput.length) * 100)
+        : 100;
+
     setAccuracy(acc);
 
-    // Check completion
     if (newInput === text) {
       setIsComplete(true);
-      const minutes = elapsedTime / 60;
-      incrementStat('typingMinutes', Math.ceil(minutes));
+      incrementStat('typingMinutes', Math.ceil(elapsedTime / 60));
       toast({
-        title: "Excellent!",
-        description: `You completed the typing test with ${wpm} WPM and ${accuracy}% accuracy.`,
+        title: 'Excellent!',
+        description: `You completed the typing test with ${wpm} WPM and ${acc}% accuracy.`,
       });
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatTime = (seconds: number) =>
+    `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
 
   const getCharacterStatus = (index: number) => {
     if (index >= input.length) return 'pending';
@@ -126,174 +118,78 @@ export default function Typing() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
-  {/* Header */}
-  <div className="mb-8 animate-fade-up">
-    <h1 className="text-3xl font-bold mb-2">Typing Practice</h1>
-    <p className="text-muted-foreground mb-3">
-      Improve your typing speed for the practical exam
-    </p>
 
-    <p className="text-sm text-muted-foreground">
-      Click on the links below for extra practice and make yourself better:
-    </p>
-
-    <div className="mt-2 flex gap-4">
-      <a
-        href="https://monkeytype.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary hover:underline font-medium"
-      >
-        Monkeytype
-      </a>
-
-      <a
-        href="https://sajilotyping.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary hover:underline font-medium"
-      >
-        Sajilo Typing
-      </a>
-    </div>
-  </div>
-</div>
-    </Layout>
-
-
-          {/* Language Toggle */}
-          <div className="flex gap-2 mb-6">
-            <Button
-              variant={language === 'english' ? 'default' : 'outline'}
-              onClick={() => {
-                setLanguage('english');
-                handleReset();
-              }}
-            >
-              English
-            </Button>
-            <Button
-              variant={language === 'nepali' ? 'default' : 'outline'}
-              onClick={() => {
-                setLanguage('nepali');
-                handleReset();
-              }}
-            >
-              नेपाली
-            </Button>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">{formatTime(elapsedTime)}</p>
-              <p className="text-xs text-muted-foreground">Time</p>
-            </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Keyboard className="w-5 h-5 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">{wpm}</p>
-              <p className="text-xs text-muted-foreground">WPM</p>
-            </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Target className="w-5 h-5 text-accent mx-auto mb-2" />
-              <p className="text-2xl font-bold">{accuracy}%</p>
-              <p className="text-xs text-muted-foreground">Accuracy</p>
-            </div>
-          </div>
-
-          {/* Typing Area */}
-          <div className="glass-card rounded-xl p-6 mb-6">
-            {/* Text to Type */}
-            <div className="mb-6 p-4 rounded-lg bg-secondary/50 font-mono text-lg leading-relaxed">
-              {text.split('').map((char, index) => {
-                const status = getCharacterStatus(index);
-                return (
-                  <span
-                    key={index}
-                    className={`${
-                      status === 'correct' ? 'text-accent' :
-                      status === 'incorrect' ? 'text-destructive bg-destructive/20' :
-                      index === input.length ? 'bg-primary/20 animate-pulse' :
-                      'text-muted-foreground'
-                    }`}
-                  >
-                    {char}
-                  </span>
-                );
-              })}
-            </div>
-
-            {/* Input Area */}
-            {isStarted && !isComplete ? (
-              <textarea
-                value={input}
-                onChange={handleInputChange}
-                disabled={isPaused}
-                placeholder={isPaused ? 'Paused...' : 'Start typing...'}
-                autoFocus
-                className="w-full h-32 p-4 rounded-lg bg-secondary border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none font-mono text-lg"
-              />
-            ) : isComplete ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-accent" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Test Complete!</h3>
-                <p className="text-muted-foreground">
-                  Speed: {wpm} WPM • Accuracy: {accuracy}%
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  Click Start to begin the typing test
-                </p>
-              </div>
-            )}
-
-            {/* Controls */}
-            <div className="flex justify-center gap-4 mt-6">
-              {!isStarted ? (
-                <Button variant="hero" size="lg" onClick={handleStart}>
-                  <Play className="w-5 h-5" />
-                  Start Test
-                </Button>
-              ) : !isComplete ? (
-                <>
-                  <Button variant="outline" onClick={handlePause}>
-                    {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                    {isPaused ? 'Resume' : 'Pause'}
-                  </Button>
-                  <Button variant="outline" onClick={handleReset}>
-                    <RotateCcw className="w-4 h-4" />
-                    Reset
-                  </Button>
-                </>
-              ) : (
-                <Button variant="hero" onClick={handleReset}>
-                  <RotateCcw className="w-4 h-4" />
-                  Try Again
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Target Info */}
-          <div className="glass-card rounded-xl p-5">
-            <h3 className="font-semibold mb-3">Required Speed</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-bold text-primary">40 WPM</p>
-                <p className="text-sm text-muted-foreground">English Typing</p>
-              </div>
-              <div className="p-4 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-bold text-accent">25 WPM</p>
-                <p className="text-sm text-muted-foreground">Nepali Typing</p>
-              </div>
-            </div>
+        {/* Header */}
+        <div className="mb-8 animate-fade-up">
+          <h1 className="text-3xl font-bold mb-2">Typing Practice</h1>
+          <p className="text-muted-foreground mb-3">
+            Improve your typing speed for the practical exam
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Click on the links below for extra practice:
+          </p>
+          <div className="mt-2 flex gap-4">
+            <a href="https://monkeytype.com" target="_blank" className="text-primary hover:underline">
+              Monkeytype
+            </a>
+            <a href="https://sajilotyping.com" target="_blank" className="text-primary hover:underline">
+              Sajilo Typing
+            </a>
           </div>
         </div>
+
+        {/* Language Toggle */}
+        <div className="flex gap-2 mb-6">
+          <Button variant={language === 'english' ? 'default' : 'outline'} onClick={() => { setLanguage('english'); handleReset(); }}>
+            English
+          </Button>
+          <Button variant={language === 'nepali' ? 'default' : 'outline'} onClick={() => { setLanguage('nepali'); handleReset(); }}>
+            नेपाली
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="glass-card p-4 text-center">
+            <Clock className="mx-auto mb-2" />
+            <p className="text-xl font-bold">{formatTime(elapsedTime)}</p>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <Keyboard className="mx-auto mb-2" />
+            <p className="text-xl font-bold">{wpm}</p>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <Target className="mx-auto mb-2" />
+            <p className="text-xl font-bold">{accuracy}%</p>
+          </div>
+        </div>
+
+        {/* Typing Area */}
+        <div className="glass-card p-6">
+          <div className="mb-6 font-mono">
+            {text.split('').map((char, i) => (
+              <span
+                key={i}
+                className={
+                  getCharacterStatus(i) === 'correct'
+                    ? 'text-green-500'
+                    : getCharacterStatus(i) === 'incorrect'
+                    ? 'text-red-500'
+                    : 'text-muted-foreground'
+                }
+              >
+                {char}
+              </span>
+            ))}
+          </div>
+
+          {!isStarted ? (
+            <Button onClick={handleStart}><Play /> Start</Button>
+          ) : (
+            <Button onClick={handleReset}><RotateCcw /> Reset</Button>
+          )}
+        </div>
+
       </div>
     </Layout>
   );
