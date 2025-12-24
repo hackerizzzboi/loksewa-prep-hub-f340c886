@@ -125,15 +125,40 @@ export default function Typing() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8 animate-fade-up">
-            <h1 className="text-3xl font-bold mb-2">Typing Practice</h1>
-            <p className="text-muted-foreground">
-              Improve your typing speed for the practical exam
-            </p>
-          </div>
+      <div className="max-w-4xl mx-auto">
+  {/* Header */}
+  <div className="mb-8 animate-fade-up">
+    <h1 className="text-3xl font-bold mb-2">Typing Practice</h1>
+    <p className="text-muted-foreground mb-3">
+      Improve your typing speed for the practical exam
+    </p>
+
+    <p className="text-sm text-muted-foreground">
+      Click on the links below for extra practice and make yourself better:
+    </p>
+
+    <div className="mt-2 flex gap-4">
+      <a
+        href="https://monkeytype.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline font-medium"
+      >
+        Monkeytype
+      </a>
+
+      <a
+        href="https://sajilotyping.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline font-medium"
+      >
+        Sajilo Typing
+      </a>
+    </div>
+  </div>
+</div>
+
 
           {/* Language Toggle */}
           <div className="flex gap-2 mb-6">
